@@ -13,10 +13,8 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 # Variables
-NGINX_MAINLINE_VER=1.15.3
-NGINX_STABLE_VER=1.14.0
-LIBRESSL_VER=2.7.4
-OPENSSL_VER=1.1.0i
+NGINX_VER=1.15.3
+OPENSSL_VER=1.1.1
 NPS_VER=1.13.35.2
 HEADERMOD_VER=0.33
 
@@ -38,24 +36,10 @@ while [[ $OPTION !=  "1" && $OPTION != "2" && $OPTION != "3" && $OPTION != "4" ]
 done
 case $OPTION in
 	1)
-		echo ""
-		echo "This script will install Nginx with some optional modules."
-		echo ""
-		echo "Do you want to install Nginx stable or mainline?"
-		echo "   1) Stable $NGINX_STABLE_VER"
-		echo "   2) Mainline $NGINX_MAINLINE_VER"
-		echo ""
-		while [[ $NGINX_VER != "1" && $NGINX_VER != "2" ]]; do
-			read -p "Select an option [1-2]: " NGINX_VER
-		done
-		case $NGINX_VER in
-			1)
-			NGINX_VER=$NGINX_STABLE_VER
-			;;
-			2)
-			NGINX_VER=$NGINX_MAINLINE_VER
-			;;
-		esac
+
+		echo "Nginx verion: $NGINX_VER"
+		echo "Openssl version: $OPENSSL_VER"
+		
 		echo ""
 		echo "Please tell me which modules you want to install."
 		echo "If you select none, Nginx will be installed with its default modules."
@@ -82,27 +66,8 @@ case $OPTION in
 		while [[ $CACHEPURGE != "y" && $CACHEPURGE != "n" ]]; do
 			read -p "       ngx_cache_purge [y/n]: " -e CACHEPURGE
 		done
-		echo ""
-		echo "Choose your OpenSSL implementation :"
-		echo "   1) System's OpenSSL ($(openssl version | cut -c9-14))"
-		echo "   2) OpenSSL $OPENSSL_VER from source"
-		echo "   3) LibreSSL $LIBRESSL_VER from source "
-		echo ""
-		while [[ $SSL != "1" && $SSL != "2" && $SSL != "3" ]]; do
-			read -p "Select an option [1-3]: " SSL
-		done
-		case $SSL in
-			1)
-			#we do nothing
-			;;
-			2)
-				OPENSSL=y
-			;;
-			3)
-				LIBRESSL=y
-			;;
-		esac
-		echo ""
+
+		OPENSSL=y
 		read -n1 -r -p "Nginx is ready to be installed, press any key to continue..."
 		echo ""
 
@@ -180,7 +145,7 @@ case $OPTION in
 			echo -ne "       Downloading ngx_headers_more   [..]\r"
 			wget https://github.com/openresty/headers-more-nginx-module/archive/v${HEADERMOD_VER}.tar.gz >> /tmp/nginx-autoinstall.log 2>&1
 			tar xaf v${HEADERMOD_VER}.tar.gz
-				
+
 			if [ $? -eq 0 ]; then
 				echo -ne "       Downloading ngx_headers_more   [${CGREEN}OK${CEND}]\r"
 				echo -ne "\n"
@@ -192,6 +157,7 @@ case $OPTION in
 				exit 1
 			fi
 		fi
+
 
 		# GeoIP
 		if [[ "$GEOIP" = 'y' ]]; then
@@ -224,7 +190,7 @@ case $OPTION in
 		if [[ "$CACHEPURGE" = 'y' ]]; then
 			cd /usr/local/src/nginx/modules
 			echo -ne "       Downloading ngx_cache_purge    [..]\r"
-			git clone https://github.com/FRiCKLE/ngx_cache_purge >> /tmp/nginx-autoinstall.log 2>&1			
+			git clone https://github.com/FRiCKLE/ngx_cache_purge >> /tmp/nginx-autoinstall.log 2>&1
 
 			if [ $? -eq 0 ]; then
 				echo -ne "       Downloading ngx_cache_purge    [${CGREEN}OK${CEND}]\r"
@@ -238,68 +204,16 @@ case $OPTION in
 			fi
 		fi
 
-		# LibreSSL
-		if [[ "$LIBRESSL" = 'y' ]]; then
-			cd /usr/local/src/nginx/modules
-			mkdir libressl-${LIBRESSL_VER}
-			cd libressl-${LIBRESSL_VER}
-			# LibreSSL download
-			echo -ne "       Downloading LibreSSL           [..]\r"
-			wget -qO- http://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${LIBRESSL_VER}.tar.gz | tar xz --strip 1
-
-			if [ $? -eq 0 ]; then
-				echo -ne "       Downloading LibreSSL           [${CGREEN}OK${CEND}]\r"
-				echo -ne "\n"
-			else
-				echo -e "       Downloading LibreSSL           [${CRED}FAIL${CEND}]"
-				echo ""
-				echo "Please look at /tmp/nginx-autoinstall.log"
-				echo ""
-				exit 1
-			fi
-
-			echo -ne "       Configuring LibreSSL           [..]\r"
-			./configure \
-				LDFLAGS=-lrt \
-				CFLAGS=-fstack-protector-strong \
-				--prefix=/usr/local/src/nginx/modules/libressl-${LIBRESSL_VER}/.openssl/ \
-				--enable-shared=no >> /tmp/nginx-autoinstall.log 2>&1
-
-			if [ $? -eq 0 ]; then
-				echo -ne "       Configuring LibreSSL           [${CGREEN}OK${CEND}]\r"
-				echo -ne "\n"
-			else
-				echo -e "       Configuring LibreSSL         [${CRED}FAIL${CEND}]"
-				echo ""
-				echo "Please look at /tmp/nginx-autoinstall.log"
-				echo ""
-				exit 1
-			fi
-
-			# LibreSSL install
-			echo -ne "       Installing LibreSSL            [..]\r"
-			make install-strip -j $(nproc) >> /tmp/nginx-autoinstall.log 2>&1
-
-			if [ $? -eq 0 ]; then
-				echo -ne "       Installing LibreSSL            [${CGREEN}OK${CEND}]\r"
-				echo -ne "\n"
-			else
-				echo -e "       Installing LibreSSL            [${CRED}FAIL${CEND}]"
-				echo ""
-				echo "Please look at /tmp/nginx-autoinstall.log"
-				echo ""
-				exit 1
-			fi
-		fi
-
 		# OpenSSL
 		if [[ "$OPENSSL" = 'y' ]]; then
 			cd /usr/local/src/nginx/modules
 			# OpenSSL download
 			echo -ne "       Downloading OpenSSL            [..]\r"
 			wget https://www.openssl.org/source/openssl-${OPENSSL_VER}.tar.gz >> /tmp/nginx-autoinstall.log 2>&1
+			git clone https://github.com/hakasenyang/openssl-patch.git >> /tmp/nnginx-autoinstall.log 2>&1
 			tar xaf openssl-${OPENSSL_VER}.tar.gz
-			cd openssl-${OPENSSL_VER}	
+			cd openssl-${OPENSSL_VER}
+			patch -s -p1 < ../openssl-patch/openssl-equal-1.1.1_ciphers.patch
 			if [ $? -eq 0 ]; then
 				echo -ne "       Downloading OpenSSL            [${CGREEN}OK${CEND}]\r"
 				echo -ne "\n"
@@ -331,6 +245,7 @@ case $OPTION in
 		echo -ne "       Downloading Nginx              [..]\r"
 		wget -qO- http://nginx.org/download/nginx-${NGINX_VER}.tar.gz | tar zxf -
 		cd nginx-${NGINX_VER}
+		curl -s https://raw.githubusercontent.com/hakasenyang/openssl-patch/master/nginx_hpack_push_1.15.3.patch | patch -s -p1
 
 		if [ $? -eq 0 ]; then
 			echo -ne "       Downloading Nginx              [${CGREEN}OK${CEND}]\r"
@@ -354,7 +269,7 @@ case $OPTION in
 		cd /usr/local/src/nginx/nginx-${NGINX_VER}
 
 		# Modules configuration
-		# Common configuration 
+		# Common configuration
 		NGINX_OPTIONS="
 		--prefix=/etc/nginx \
 		--sbin-path=/usr/sbin/nginx \
@@ -390,7 +305,7 @@ case $OPTION in
 		--with-http_realip_module"
 
 		# Optional modules
-		# LibreSSL 
+		# LibreSSL
 		if [[ "$LIBRESSL" = 'y' ]]; then
 			NGINX_MODULES=$(echo $NGINX_MODULES; echo --with-openssl=/usr/local/src/nginx/modules/libressl-${LIBRESSL_VER})
 		fi
@@ -418,6 +333,7 @@ case $OPTION in
 		# OpenSSL
 		if [[ "$OPENSSL" = 'y' ]]; then
 			NGINX_MODULES=$(echo $NGINX_MODULES; echo "--with-openssl=/usr/local/src/nginx/modules/openssl-${OPENSSL_VER}")
+			NGINX_MODULES=$(echo $NGINX_MODULES; echo "--with-openssl-opt=enable-tls1_3")
 		fi
 
 		# Cache Purge
@@ -430,7 +346,7 @@ case $OPTION in
 			echo -ne "       TLS Dynamic Records support    [..]\r"
 			wget https://raw.githubusercontent.com/cloudflare/sslconfig/master/patches/nginx__1.11.5_dynamic_tls_records.patch >> /tmp/nginx-autoinstall.log 2>&1
 			patch -p1 < nginx__1.11.5_dynamic_tls_records.patch >> /tmp/nginx-autoinstall.log 2>&1
-		        
+
 			if [ $? -eq 0 ]; then
 				echo -ne "       TLS Dynamic Records support    [${CGREEN}OK${CEND}]\r"
 				echo -ne "\n"
@@ -442,7 +358,7 @@ case $OPTION in
 				exit 1
 			fi
 		fi
-		
+
 		# Fancy index
 		if [[ "$FANCYINDEX" = 'y' ]]; then
 			git clone --quiet https://github.com/aperezdc/ngx-fancyindex.git /usr/local/src/nginx/modules/fancyindex >> /tmp/nginx-autoinstall.log 2>&1
@@ -482,7 +398,7 @@ case $OPTION in
 		# Then we install \o/
 		echo -ne "       Installing Nginx               [..]\r"
 		make install >> /tmp/nginx-autoinstall.log 2>&1
-		
+
 		# remove debugging symbols
 		strip -s /usr/sbin/nginx
 
@@ -516,7 +432,7 @@ case $OPTION in
 			mkdir -p /var/cache/nginx
 		fi
 
-		# We add sites-* folders as some use them. /etc/nginx/conf.d/ is the vhost folder by defaultnginx 
+		# We add sites-* folders as some use them. /etc/nginx/conf.d/ is the vhost folder by defaultnginx
 		if [[ ! -d /etc/nginx/sites-available ]]; then
 			mkdir -p /etc/nginx/sites-available
 		fi
@@ -538,7 +454,7 @@ case $OPTION in
 			echo ""
 			exit 1
 		fi
-		
+
 		if [[ $(lsb_release -si) == "Debian" ]] || [[ $(lsb_release -si) == "Ubuntu" ]]
 		then
 			echo -ne "       Blocking nginx from APT        [..]\r"
