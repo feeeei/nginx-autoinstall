@@ -13,7 +13,7 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 # Variables
-NGINX_VER=1.15.3
+NGINX_VER=1.15.6
 OPENSSL_VER=1.1.1
 NPS_VER=1.13.35.2
 HEADERMOD_VER=0.33
@@ -59,9 +59,6 @@ case $OPTION in
 		done
 		while [[ $FANCYINDEX != "y" && $FANCYINDEX != "n" ]]; do
 			read -p "       Fancy index [y/n]: " -e FANCYINDEX
-		done
-		while [[ $TCP != "y" && $TCP != "n" ]]; do
-			read -p "       Cloudflare's TLS Dynamic Record Resizing patch [y/n]: " -e TCP
 		done
 		while [[ $CACHEPURGE != "y" && $CACHEPURGE != "n" ]]; do
 			read -p "       ngx_cache_purge [y/n]: " -e CACHEPURGE
@@ -245,7 +242,12 @@ case $OPTION in
 		echo -ne "       Downloading Nginx              [..]\r"
 		wget -qO- http://nginx.org/download/nginx-${NGINX_VER}.tar.gz | tar zxf -
 		cd nginx-${NGINX_VER}
-		curl -s https://raw.githubusercontent.com/hakasenyang/openssl-patch/master/nginx_hpack_push_1.15.3.patch | patch -s -p1
+		# SPDY, HTTP2 HPACK, Dynamic TLS Record, Fix Http2 Push Error Patch
+		curl -s https://raw.githubusercontent.com/kn007/patch/43f2d869b209756b442cfbfa861d653d993f16fe/nginx.patch | patch -s -p1
+		# Strict-SNI Patch
+		# Strict SNI requires at least two ssl server (fake) settings (server { listen 443 ssl }).
+		# It does not matter what kind of certificate or duplicate.
+		curl -s https://raw.githubusercontent.com/hakasenyang/openssl-patch/master/nginx_strict-sni.patch | patch -s -p1
 
 		if [ $? -eq 0 ]; then
 			echo -ne "       Downloading Nginx              [${CGREEN}OK${CEND}]\r"
@@ -333,30 +335,11 @@ case $OPTION in
 		# OpenSSL
 		if [[ "$OPENSSL" = 'y' ]]; then
 			NGINX_MODULES=$(echo $NGINX_MODULES; echo "--with-openssl=/usr/local/src/nginx/modules/openssl-${OPENSSL_VER}")
-			NGINX_MODULES=$(echo $NGINX_MODULES; echo "--with-openssl-opt=enable-tls1_3")
 		fi
 
 		# Cache Purge
 		if [[ "$CACHEPURGE" = 'y' ]]; then
 			NGINX_MODULES=$(echo $NGINX_MODULES; echo "--add-module=/usr/local/src/nginx/modules/ngx_cache_purge")
-		fi
-
-		# Cloudflare's TLS Dynamic Record Resizing patch
-		if [[ "$TCP" = 'y' ]]; then
-			echo -ne "       TLS Dynamic Records support    [..]\r"
-			wget https://raw.githubusercontent.com/cloudflare/sslconfig/master/patches/nginx__1.11.5_dynamic_tls_records.patch >> /tmp/nginx-autoinstall.log 2>&1
-			patch -p1 < nginx__1.11.5_dynamic_tls_records.patch >> /tmp/nginx-autoinstall.log 2>&1
-
-			if [ $? -eq 0 ]; then
-				echo -ne "       TLS Dynamic Records support    [${CGREEN}OK${CEND}]\r"
-				echo -ne "\n"
-			else
-				echo -e "       TLS Dynamic Records support    [${CRED}FAIL${CEND}]"
-				echo ""
-				echo "Please look at /tmp/nginx-autoinstall.log"
-				echo ""
-				exit 1
-			fi
 		fi
 
 		# Fancy index
