@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Colors
+CSI="\\033["
+CEND="${CSI}0m"
+CRED="${CSI}1;31m"
+CGREEN="${CSI}1;32m"
+
 if [[ "$EUID" -ne 0 ]]; then
 	echo -e "Sorry, you need to run this as root"
 	exit 1
@@ -12,6 +18,8 @@ NPS_VER=1.13.35.2
 HEADERMOD_VER=0.33
 LIBMAXMINDDB_VER=1.3.2
 GEOIP2_VER=3.2
+
+rm /tmp/nginx-autoinstall.log
 
 clear
 echo ""
@@ -63,103 +71,210 @@ case $OPTION in
 
 		# Cleanup
 		# The directory should be deleted at the end of the script, but in case it fails
-		rm -r /usr/local/src/nginx/ >> /dev/null 2>&1
-		mkdir -p /usr/local/src/nginx/modules
+		rm -r /usr/local/src/nginx/ >> /tmp/nginx-autoinstall.log 2>&1
+		mkdir -p /usr/local/src/nginx/modules >> /tmp/nginx-autoinstall.log 2>&1
 
 		# Dependencies
-		apt-get update
-		apt-get install -y build-essential ca-certificates wget curl libpcre3 libpcre3-dev autoconf unzip automake libtool tar git libssl-dev zlib1g-dev uuid-dev lsb-release
+		apt-get update >> /tmp/nginx-autoinstall.log 2>&1
+		apt-get install -y build-essential ca-certificates wget curl libpcre3 libpcre3-dev autoconf unzip automake libtool tar git libssl-dev zlib1g-dev uuid-dev lsb-release >> /tmp/nginx-autoinstall.log 2>&1
+
+		if [ $? -eq 0 ]; then
+			echo -ne "       Installing dependencies        [${CGREEN}OK${CEND}]\\r"
+			echo -ne "\\n"
+		else
+			echo -e "        Installing dependencies      [${CRED}FAIL${CEND}]"
+			echo ""
+			echo "Please look at /tmp/nginx-autoinstall.log"
+			echo ""
+			exit 1
+		fi
 
 		# PageSpeed
 		if [[ "$PAGESPEED" = 'y' ]]; then
 			cd /usr/local/src/nginx/modules || exit 1
-			wget https://github.com/pagespeed/ngx_pagespeed/archive/v${NPS_VER}-stable.zip
-			unzip v${NPS_VER}-stable.zip
+			wget https://github.com/pagespeed/ngx_pagespeed/archive/v${NPS_VER}-stable.zip >> /tmp/nginx-autoinstall.log 2>&1
+			unzip v${NPS_VER}-stable.zip  >> /tmp/nginx-autoinstall.log 2>&1
 			cd incubator-pagespeed-ngx-${NPS_VER}-stable || exit 1
 			psol_url=https://dl.google.com/dl/page-speed/psol/${NPS_VER}.tar.gz
 			[ -e scripts/format_binary_url.sh ] && psol_url=$(scripts/format_binary_url.sh PSOL_BINARY_URL)
-			wget "${psol_url}"
-			tar -xzvf "$(basename "${psol_url}")"
+			
+			if [ $? -eq 0 ]; then
+				echo -ne "       Downloading ngx_pagespeed      [${CGREEN}OK${CEND}]\\r"
+				echo -ne "\\n"
+			else
+				echo -e "       Downloading ngx_pagespeed      [${CRED}FAIL${CEND}]"
+				echo ""
+				echo "Please look at /tmp/nginx-autoinstall.log"
+				echo ""
+				exit 1
+			fi
+			wget "${psol_url}" >> /tmp/nginx-autoinstall.log 2>&1
+			tar -xzvf "$(basename "${psol_url}")" >> /tmp/nginx-autoinstall.log 2>&1
 		fi
 
 		#Brotli
 		if [[ "$BROTLI" = 'y' ]]; then
 			cd /usr/local/src/nginx/modules || exit 1
-			git clone https://github.com/eustas/ngx_brotli
+			echo -ne "       Downloading ngx_brotli         [..]\\r"
+			git clone https://github.com/eustas/ngx_brotli >> /tmp/nginx-autoinstall.log 2>&1
 			cd ngx_brotli || exit 1
-			git checkout v0.1.2
-			git submodule update --init
+			git checkout v0.1.2 >> /tmp/nginx-autoinstall.log 2>&1
+			git submodule update --init >> /tmp/nginx-autoinstall.log 2>&1
+
+			if [ $? -eq 0 ]; then
+				echo -ne "       Downloading ngx_brotli         [${CGREEN}OK${CEND}]\\r"
+				echo -ne "\\n"
+			else
+				echo -e "       Downloading ngx_brotli         [${CRED}FAIL${CEND}]"
+				echo ""
+				echo "Please look at /tmp/nginx-autoinstall.log"
+				echo ""
+				exit 1
+			fi
 		fi
 
 		# More Headers
 		if [[ "$HEADERMOD" = 'y' ]]; then
 			cd /usr/local/src/nginx/modules || exit 1
-			wget https://github.com/openresty/headers-more-nginx-module/archive/v${HEADERMOD_VER}.tar.gz
-			tar xaf v${HEADERMOD_VER}.tar.gz
+			echo -ne "       Downloading ngx_headers_more   [..]\\r"
+			wget https://github.com/openresty/headers-more-nginx-module/archive/v${HEADERMOD_VER}.tar.gz >> /tmp/nginx-autoinstall.log 2>&1
+			tar xaf v${HEADERMOD_VER}.tar.gz >> /tmp/nginx-autoinstall.log 2>&1
+
+			if [ $? -eq 0 ]; then
+				echo -ne "       Downloading ngx_headers_more   [${CGREEN}OK${CEND}]\\r"
+				echo -ne "\\n"
+			else
+				echo -e "       Downloading ngx_headers_more   [${CRED}FAIL${CEND}]"
+				echo ""
+				echo "Please look at /tmp/nginx-autoinstall.log"
+				echo ""
+				exit 1
+			fi
 		fi
 
 		# GeoIP
 		if [[ "$GEOIP" = 'y' ]]; then
 			cd /usr/local/src/nginx/modules || exit 1
 			# install libmaxminddb
-			wget https://github.com/maxmind/libmaxminddb/releases/download/${LIBMAXMINDDB_VER}/libmaxminddb-${LIBMAXMINDDB_VER}.tar.gz
-			tar xaf libmaxminddb-${LIBMAXMINDDB_VER}.tar.gz
+			wget https://github.com/maxmind/libmaxminddb/releases/download/${LIBMAXMINDDB_VER}/libmaxminddb-${LIBMAXMINDDB_VER}.tar.gz >> /tmp/nginx-autoinstall.log 2>&1
+			tar xaf libmaxminddb-${LIBMAXMINDDB_VER}.tar.gz  >> /tmp/nginx-autoinstall.log 2>&1
 			cd libmaxminddb-${LIBMAXMINDDB_VER}/
-			./configure
-			make
-			make install
-			ldconfig
+			./configure >> /tmp/nginx-autoinstall.log 2>&1
+			make >> /tmp/nginx-autoinstall.log 2>&1
+			make install >> /tmp/nginx-autoinstall.log 2>&1
+			ldconfig >> /tmp/nginx-autoinstall.log 2>&1
 
 			cd ../
-			wget https://github.com/leev/ngx_http_geoip2_module/archive/${GEOIP2_VER}.tar.gz
-			tar xaf ${GEOIP2_VER}.tar.gz
+			wget https://github.com/leev/ngx_http_geoip2_module/archive/${GEOIP2_VER}.tar.gz >> /tmp/nginx-autoinstall.log 2>&1
+			tar xaf ${GEOIP2_VER}.tar.gz >> /tmp/nginx-autoinstall.log 2>&1
 
 			mkdir geoip-db
 			cd geoip-db || exit 1
-			wget https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.tar.gz
-			wget https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz
-			tar -xf GeoLite2-City.tar.gz
-			tar -xf GeoLite2-Country.tar.gz
-			mkdir /opt/geoip
+			wget https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.tar.gz >> /tmp/nginx-autoinstall.log 2>&1
+			wget https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz >> /tmp/nginx-autoinstall.log 2>&1
+			tar -xf GeoLite2-City.tar.gz >> /tmp/nginx-autoinstall.log 2>&1
+			tar -xf GeoLite2-Country.tar.gz >> /tmp/nginx-autoinstall.log 2>&1
+			geo_dir="/opt/geoip"
+			if [[ ! -e $geo_dir ]]; then
+				mkdir $geo_dir
+			fi
 			cd GeoLite2-City_*/
 			mv GeoLite2-City.mmdb /opt/geoip/
 			cd ../
 			cd GeoLite2-Country_*/
 			mv GeoLite2-Country.mmdb /opt/geoip/
+
+			if [ $? -eq 0 ]; then
+				echo -ne "       Downloading GeoIP databases    [${CGREEN}OK${CEND}]\\r"
+				echo -ne "\\n"
+			else
+				echo -e "       Downloading GeoIP databases    [${CRED}FAIL${CEND}]"
+				echo ""
+				echo "Please look at /tmp/nginx-autoinstall.log"
+				echo ""
+				exit 1
+			fi
 		fi
 
 		# Cache Purge
 		if [[ "$CACHEPURGE" = 'y' ]]; then
 			cd /usr/local/src/nginx/modules || exit 1
-			git clone https://github.com/FRiCKLE/ngx_cache_purge
+			echo -ne "       Downloading ngx_cache_purge    [..]\\r"
+			git clone https://github.com/FRiCKLE/ngx_cache_purge >> /tmp/nginx-autoinstall.log 2>&1
+
+			if [ $? -eq 0 ]; then
+				echo -ne "       Downloading ngx_cache_purge    [${CGREEN}OK${CEND}]\\r"
+				echo -ne "\\n"
+			else
+				echo -e "       Downloading ngx_cache_purge    [${CRED}FAIL${CEND}]"
+				echo ""
+				echo "Please look at /tmp/nginx-autoinstall.log"
+				echo ""
+				exit 1
+			fi
 		fi
 
 		# OpenSSL
 		OPENSSL=y
 		if [[ "$OPENSSL" = 'y' ]]; then
 			cd /usr/local/src/nginx/modules || exit 1
-			wget https://www.openssl.org/source/openssl-${OPENSSL_VER}.tar.gz
+			echo -ne "       Downloading OpenSSL            [..]\\r"
+			wget https://www.openssl.org/source/openssl-${OPENSSL_VER}.tar.gz >> /tmp/nginx-autoinstall.log 2>&1
 			tar xaf openssl-${OPENSSL_VER}.tar.gz
 			cd openssl-${OPENSSL_VER}
 			curl -s https://raw.githubusercontent.com/hakasenyang/openssl-patch/master/openssl-equal-1.1.1a_ciphers.patch | patch -s -p1
 			curl -s https://raw.githubusercontent.com/hakasenyang/openssl-patch/master/openssl-1.1.1a-chacha_draft.patch | patch -s -p1
 
-			./config
+			if [ $? -eq 0 ]; then
+				echo -ne "       Downloading OpenSSL            [${CGREEN}OK${CEND}]\\r"
+				echo -ne "\\n"
+			else
+				echo -e "       Downloading OpenSSL            [${CRED}FAIL${CEND}]"
+				echo ""
+				echo "Please look at /tmp/nginx-autoinstall.log"
+				echo ""
+				exit 1
+			fi
+
+			echo -ne "       Configuring OpenSSL            [..]\\r"
+			./config >> /tmp/nginx-autoinstall.log 2>&1
+
+			if [ $? -eq 0 ]; then
+				echo -ne "       Configuring OpenSSL            [${CGREEN}OK${CEND}]\\r"
+				echo -ne "\\n"
+			else
+				echo -e "       Configuring OpenSSL          [${CRED}FAIL${CEND}]"
+				echo ""
+				echo "Please look at /tmp/nginx-autoinstall.log"
+				echo ""
+				exit 1
+			fi
 		fi
 
 		# Download and extract of Nginx source code
 		cd /usr/local/src/nginx/ || exit 1
+		echo -ne "       Downloading Nginx              [..]\\r"
 		wget -qO- http://nginx.org/download/nginx-${NGINX_VER}.tar.gz | tar zxf -
 		cd nginx-${NGINX_VER}
 		curl -s https://raw.githubusercontent.com/kn007/patch/d6bd9f7e345a0afc88e050a4dd991a57b7fb39be/nginx.patch | patch -s -p1
 		curl -s https://raw.githubusercontent.com/hakasenyang/openssl-patch/master/nginx_strict-sni.patch | patch -s -p1
 
+		if [ $? -eq 0 ]; then
+			echo -ne "       Downloading Nginx              [${CGREEN}OK${CEND}]\\r"
+			echo -ne "\\n"
+		else
+			echo -e "       Downloading Nginx              [${CRED}FAIL${CEND}]"
+			echo ""
+			echo "Please look at /tmp/nginx-autoinstall.log"
+			echo ""
+			exit 1
+		fi
 		# As the default nginx.conf does not work, we download a clean and working conf from my GitHub.
 		# We do it only if it does not already exist, so that it is not overriten if Nginx is being updated
 		if [[ ! -e /etc/nginx/nginx.conf ]]; then
 			mkdir -p /etc/nginx
 			cd /etc/nginx || exit 1
-			wget https://raw.githubusercontent.com/Angristan/nginx-autoinstall/master/conf/nginx.conf
+			wget https://raw.githubusercontent.com/Angristan/nginx-autoinstall/master/conf/nginx.conf >> /tmp/nginx-autoinstall.log 2>&1
 		fi
 		cd /usr/local/src/nginx/nginx-${NGINX_VER} || exit 1
 
@@ -218,29 +333,67 @@ case $OPTION in
 		fi
 
 		if [[ "$FANCYINDEX" = 'y' ]]; then
-			git clone --quiet https://github.com/aperezdc/ngx-fancyindex.git /usr/local/src/nginx/modules/fancyindex
+			git clone --quiet https://github.com/aperezdc/ngx-fancyindex.git /usr/local/src/nginx/modules/fancyindex >> /tmp/nginx-autoinstall.log 2>&1
 			NGINX_MODULES=$(echo "$NGINX_MODULES"; echo --add-module=/usr/local/src/nginx/modules/fancyindex)
 		fi
 
-		./configure $NGINX_OPTIONS $NGINX_MODULES
-		make -j "$(nproc)"
-		make install
+		echo -ne "       Configuring Nginx              [..]\\r"
+		./configure $NGINX_OPTIONS $NGINX_MODULES >> /tmp/nginx-autoinstall.log 2>&1
+		
+		if [ $? -eq 0 ]; then
+			echo -ne "       Configuring Nginx              [${CGREEN}OK${CEND}]\\r"
+			echo -ne "\\n"
+		else
+			echo -e "       Configuring Nginx              [${CRED}FAIL${CEND}]"
+			echo ""
+			echo "Please look at /tmp/nginx-autoinstall.log"
+			echo ""
+			exit 1
+		fi
+		
+		echo -ne "       Compiling Nginx                [..]\\r"
+		make -j "$(nproc)" >> /tmp/nginx-autoinstall.log 2>&1
+
+		if [ $? -eq 0 ]; then
+			echo -ne "       Compiling Nginx                [${CGREEN}OK${CEND}]\\r"
+			echo -ne "\\n"
+		else
+			echo -e "       Compiling Nginx                [${CRED}FAIL${CEND}]"
+			echo ""
+			echo "Please look at /tmp/nginx-autoinstall.log"
+			echo ""
+			exit 1
+		fi
+
+		echo -ne "       Installing Nginx               [..]\\r"
+		make install >> /tmp/nginx-autoinstall.log 2>&1
 
 		# remove debugging symbols
 		strip -s /usr/sbin/nginx
+
+		if [ $? -eq 0 ]; then
+			echo -ne "       Installing Nginx               [${CGREEN}OK${CEND}]\\r"
+			echo -ne "\\n"
+		else
+			echo -e "       Installing Nginx               [${CRED}FAIL${CEND}]"
+			echo ""
+			echo "Please look at /tmp/nginx-autoinstall.log"
+			echo ""
+			exit 1
+		fi
 
 		# Nginx installation from source does not add an init script for systemd and logrotate
 		# Using the official systemd script and logrotate conf from nginx.org
 		if [[ ! -e /lib/systemd/system/nginx.service ]]; then
 			cd /lib/systemd/system/ || exit 1
-			wget https://raw.githubusercontent.com/Angristan/nginx-autoinstall/master/conf/nginx.service
+			wget https://raw.githubusercontent.com/Angristan/nginx-autoinstall/master/conf/nginx.service >> /tmp/nginx-autoinstall.log 2>&1
 			# Enable nginx start at boot
-			systemctl enable nginx
+			systemctl enable nginx >> /tmp/nginx-autoinstall.log 2>&1
 		fi
 
 		if [[ ! -e /etc/logrotate.d/nginx ]]; then
 			cd /etc/logrotate.d/ || exit 1
-			wget https://raw.githubusercontent.com/Angristan/nginx-autoinstall/master/conf/nginx-logrotate -O nginx
+			wget https://raw.githubusercontent.com/Angristan/nginx-autoinstall/master/conf/nginx-logrotate -O nginx >> /tmp/nginx-autoinstall.log 2>&1
 		fi
 
 		# Nginx's cache directory is not created by default
@@ -257,20 +410,42 @@ case $OPTION in
 		fi
 
 		# Restart Nginx
-		systemctl restart nginx
+		echo -ne "       Restarting Nginx               [..]\\r"
+		systemctl restart nginx >> /tmp/nginx-autoinstall.log 2>&1
+		
+		if [ $? -eq 0 ]; then
+			echo -ne "       Restarting Nginx               [${CGREEN}OK${CEND}]\\r"
+			echo -ne "\\n"
+		else
+			echo -e "       Restarting Nginx               [${CRED}FAIL${CEND}]"
+			echo ""
+			echo "Please look at /tmp/nginx-autoinstall.log"
+			echo ""
+			exit 1
+		fi
 
 		# Block Nginx from being installed via APT
 		if [[ $(lsb_release -si) == "Debian" ]] || [[ $(lsb_release -si) == "Ubuntu" ]]
 		then
+			echo -ne "       Blocking nginx from APT        [..]\\r"
 			cd /etc/apt/preferences.d/ || exit 1
 			echo -e "Package: nginx*\\nPin: release *\\nPin-Priority: -1" > nginx-block
+			echo -ne "       Blocking nginx from APT        [${CGREEN}OK${CEND}]\\r"
+			echo -ne "\\n"
 		fi
 
 		# Removing temporary Nginx and modules files
-		rm -r /usr/local/src/nginx
+		echo -ne "       Removing Nginx files           [..]\\r"
+		rm -r /usr/local/src/nginx >> /tmp/nginx-autoinstall.log 2>&1
+		echo -ne "       Removing Nginx files           [${CGREEN}OK${CEND}]\\r"
+		echo -ne "\\n"
 
 		# We're done !
-		echo "Installation done."
+		echo ""
+		echo -e "       ${CGREEN}Installation successful !${CEND}"
+		echo ""
+		echo "       Installation log: /tmp/nginx-autoinstall.log"
+		echo ""
 	exit
 	;;
 	2) # Uninstall Nginx
@@ -313,7 +488,7 @@ case $OPTION in
 	exit
 	;;
 	3) # Update the script
-		wget https://raw.githubusercontent.com/Angristan/nginx-autoinstall/master/nginx-autoinstall.sh -O nginx-autoinstall.sh
+		wget https://raw.githubusercontent.com/feeeei/nginx-autoinstall/master/nginx-autoinstall.sh -O nginx-autoinstall.sh >> /tmp/nginx-autoinstall.log 2>&1
 		chmod +x nginx-autoinstall.sh
 		echo ""
 		echo "Update done."
