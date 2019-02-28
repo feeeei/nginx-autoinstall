@@ -12,8 +12,8 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 # Variables
-NGINX_MAINLINE_VER=1.15.8
-OPENSSL_VER=1.1.1a
+NGINX_MAINLINE_VER=1.15.9
+OPENSSL_VER=1.1.1b
 NPS_VER=1.13.35.2
 HEADERMOD_VER=0.33
 LIBMAXMINDDB_VER=1.3.2
@@ -222,8 +222,8 @@ case $OPTION in
 			wget https://www.openssl.org/source/openssl-${OPENSSL_VER}.tar.gz >> /tmp/nginx-autoinstall.log 2>&1
 			tar xaf openssl-${OPENSSL_VER}.tar.gz
 			cd openssl-${OPENSSL_VER}
-			curl -s https://raw.githubusercontent.com/hakasenyang/openssl-patch/master/openssl-equal-1.1.1a_ciphers.patch | patch -s -p1
-			curl -s https://raw.githubusercontent.com/hakasenyang/openssl-patch/master/openssl-1.1.1a-chacha_draft.patch | patch -s -p1
+			curl -s https://raw.githubusercontent.com/hakasenyang/openssl-patch/master/openssl-equal-1.1.1b_ciphers.patch | patch -s -p1
+			curl -s https://raw.githubusercontent.com/hakasenyang/openssl-patch/master/openssl-1.1.1b-chacha_draft.patch | patch -s -p1
 
 			if [ $? -eq 0 ]; then
 				echo -ne "       Downloading OpenSSL            [${CGREEN}OK${CEND}]\\r"
