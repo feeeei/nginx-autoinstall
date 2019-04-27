@@ -1,6 +1,6 @@
 # nginx-autoinstall for TLS1.3 version
 
-Lock Nginx version: 1.15.9
+Lock Nginx version: 1.16.0
 
 Lock Openssl version: 1.1.1b
 

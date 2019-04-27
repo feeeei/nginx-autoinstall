@@ -12,7 +12,7 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 # Variables
-NGINX_MAINLINE_VER=1.15.9
+NGINX_MAINLINE_VER=1.16.0
 OPENSSL_VER=1.1.1b
 NPS_VER=1.13.35.2
 HEADERMOD_VER=0.33
@@ -257,7 +257,7 @@ case $OPTION in
 		wget -qO- http://nginx.org/download/nginx-${NGINX_VER}.tar.gz | tar zxf -
 		cd nginx-${NGINX_VER}
 		curl -s https://raw.githubusercontent.com/kn007/patch/d6bd9f7e345a0afc88e050a4dd991a57b7fb39be/nginx.patch | patch -s -p1
-		curl -s https://raw.githubusercontent.com/hakasenyang/openssl-patch/master/nginx_strict-sni.patch | patch -s -p1
+		curl -s https://raw.githubusercontent.com/hakasenyang/openssl-patch/master/nginx_strict-sni_1.15.10.patch | patch -s -p1
 
 		if [ $? -eq 0 ]; then
 			echo -ne "       Downloading Nginx              [${CGREEN}OK${CEND}]\\r"
