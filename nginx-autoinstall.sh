@@ -12,7 +12,7 @@ if [[ "$EUID" -ne 0 ]]; then
 fi
 
 # Variables
-NGINX_MAINLINE_VER=1.17.6
+NGINX_MAINLINE_VER=1.17.8
 OPENSSL_VER=1.1.1d
 NPS_VER=1.13.35.2
 HEADERMOD_VER=0.33
@@ -39,7 +39,7 @@ case $OPTION in
 		echo ""
 		echo "This script will install Nginx with some optional modules."
 		echo "install Nginx mainline $NGINX_MAINLINE_VER"
-		
+
 		NGINX_VER=$NGINX_MAINLINE_VER
 
 		echo ""
@@ -97,7 +97,7 @@ case $OPTION in
 			cd incubator-pagespeed-ngx-${NPS_VER}-stable || exit 1
 			psol_url=https://dl.google.com/dl/page-speed/psol/${NPS_VER}.tar.gz
 			[ -e scripts/format_binary_url.sh ] && psol_url=$(scripts/format_binary_url.sh PSOL_BINARY_URL)
-			
+
 			if [ $? -eq 0 ]; then
 				echo -ne "       Downloading ngx_pagespeed      [${CGREEN}OK${CEND}]\\r"
 				echo -ne "\\n"
@@ -119,6 +119,7 @@ case $OPTION in
 			git clone https://github.com/eustas/ngx_brotli >> /tmp/nginx-autoinstall.log 2>&1
 			cd ngx_brotli || exit 1
 			git checkout v0.1.2 >> /tmp/nginx-autoinstall.log 2>&1
+			rm -rf /usr/local/src/nginx/modules/ngx_brotli/deps/ >> /tmp/nginx-autoinstall.log 2>&1
 			git submodule update --init >> /tmp/nginx-autoinstall.log 2>&1
 
 			if [ $? -eq 0 ]; then
@@ -339,7 +340,7 @@ case $OPTION in
 
 		echo -ne "       Configuring Nginx              [..]\\r"
 		./configure $NGINX_OPTIONS $NGINX_MODULES >> /tmp/nginx-autoinstall.log 2>&1
-		
+
 		if [ $? -eq 0 ]; then
 			echo -ne "       Configuring Nginx              [${CGREEN}OK${CEND}]\\r"
 			echo -ne "\\n"
@@ -350,7 +351,7 @@ case $OPTION in
 			echo ""
 			exit 1
 		fi
-		
+
 		echo -ne "       Compiling Nginx                [..]\\r"
 		make -j "$(nproc)" >> /tmp/nginx-autoinstall.log 2>&1
 
@@ -412,7 +413,7 @@ case $OPTION in
 		# Restart Nginx
 		echo -ne "       Restarting Nginx               [..]\\r"
 		systemctl restart nginx >> /tmp/nginx-autoinstall.log 2>&1
-		
+
 		if [ $? -eq 0 ]; then
 			echo -ne "       Restarting Nginx               [${CGREEN}OK${CEND}]\\r"
 			echo -ne "\\n"
@@ -501,4 +502,3 @@ case $OPTION in
 	;;
 
 esac
-
